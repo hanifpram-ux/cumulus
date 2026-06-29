@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      width: 280px;
+      background: #1e1e2e;
+      color: #cdd6f4;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      padding: 20px;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #313244;
+    }
+    .header h1 { font-size: 16px; font-weight: 700; }
+    .version {
+      font-size: 11px;
+      color: #6c7086;
+      background: #313244;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+    .logo {
+      width: 24px; height: 24px;
+      background: #89b4fa;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+    .btn {
+      width: 100%;
+      padding: 12px;
+      background: #89b4fa;
+      color: #1e1e2e;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn:hover { background: #74c7ec; }
+    .desc {
+      margin-top: 12px;
+      font-size: 12px;
+      color: #6c7086;
+      line-height: 1.6;
+      text-align: center;
+    }
+    .protocols {
+      margin-top: 10px;
+      font-size: 10px;
+      color: #45475a;
+      text-align: center;
+      line-height: 1.5;
+    }
+    .credit {
+      margin-top: 12px;
+      font-size: 10px;
+      color: #585b70;
+      text-align: center;
+      padding-top: 10px;
+      border-top: 1px solid #313244;
+    }
+    .credit a {
+      color: #89b4fa;
+      text-decoration: none;
+    }
+    .credit a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">&#9729;</div>
+    <h1>Cumulus</h1>
+    <span class="version">v2.0</span>
+  </div>
+  <button class="btn" id="open-btn">Open Cumulus</button>
+  <p class="desc">Multi-protocol cloud storage manager.<br>R2, S3, B2, GCS, WebDAV & more.</p>
+  <p class="protocols">S3 &bull; R2 &bull; B2 &bull; GCS &bull; Wasabi &bull; DO Spaces &bull; MinIO &bull; WebDAV</p>
+  <p class="credit">Made with &hearts; by <a href="https://hanifprm.my.id" target="_blank">Hanif Pramono</a> &bull; <a href="https://github.com/hanifpram-ux/cumulus" target="_blank">GitHub</a></p>
+  <script src="popup.js"></script>
+</body>
+</html>

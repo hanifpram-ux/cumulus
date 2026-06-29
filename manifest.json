@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "Cumulus",
+  "version": "2.0.0",
+  "description": "Cloud storage file manager for Chrome. Browse, upload, download, and batch rename files on Cloudflare R2, Amazon S3, Backblaze B2, Google Cloud Storage, Wasabi, DigitalOcean Spaces, MinIO, WebDAV, and any S3-compatible storage — directly from your browser.",
+  "permissions": [
+    "storage",
+    "downloads",
+    "unlimitedStorage"
+  ],
+  "host_permissions": [
+    "https://*/*",
+    "http://*/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cumulus</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Setup Page -->
+  <div class="setup-page" id="setup-page">
+    <div class="setup-card" style="width:500px">
+      <h1><span style="background:var(--blue);color:var(--crust);padding:2px 8px;border-radius:6px;font-size:14px;">☁️</span> Cumulus</h1>
+      <p class="subtitle">Connect to your cloud storage</p>
+      <p class="setup-credit">Made with &hearts; by <a href="https://hanifprm.my.id" target="_blank">Hanif Pramono</a> &bull; <a href="https://github.com/hanifpram-ux/cumulus" target="_blank">Open Source (GPL v3)</a></p>
+
+      <!-- Server List -->
+      <div class="server-list-section" id="server-list-section">
+        <div class="server-list-header">
+          <h3>Saved Servers</h3>
+          <button class="btn btn-primary btn-sm" id="btn-add-server">+ New Server</button>
+        </div>
+        <div class="server-list" id="server-list"></div>
+      </div>
+
+      <!-- Server Form (hidden by default) -->
+      <div class="server-form" id="server-form" style="display:none">
+        <div class="server-form-header">
+          <h3 id="server-form-title">New Server</h3>
+          <button class="btn btn-sm" id="btn-back-to-list">← Back</button>
+        </div>
+
+        <div class="form-group">
+          <label>Server Name</label>
+          <input type="text" id="setup-server-name" placeholder="My Server" autocomplete="off">
+        </div>
+
+        <div class="form-group">
+          <label>Protocol</label>
+          <select id="setup-protocol" class="form-select">
+            <optgroup label="Object Storage (S3-Compatible)">
+              <option value="r2">Cloudflare R2</option>
+              <option value="s3">Amazon S3</option>
+              <option value="b2">Backblaze B2</option>
+              <option value="gcs">Google Cloud Storage</option>
+              <option value="wasabi">Wasabi</option>
+              <option value="do-spaces">DigitalOcean Spaces</option>
+              <option value="minio">MinIO (Self-hosted)</option>
+              <option value="s3-compatible">S3-Compatible (Custom)</option>
+            </optgroup>
+            <optgroup label="Other">
+              <option value="webdav">WebDAV</option>
+            </optgroup>
+          </select>
+        </div>
+
+        <!-- Dynamic fields container -->
+        <div id="setup-dynamic-fields"></div>
+
+        <div class="setup-actions">
+          <button class="btn btn-primary" id="setup-test" style="flex:1">Test Connection</button>
+          <button class="btn btn-primary" id="setup-save" style="flex:1;background:var(--green);border-color:var(--green)" disabled>Save & Connect</button>
+        </div>
+
+        <div class="setup-error" id="setup-error"></div>
+        <div class="setup-success" id="setup-success"></div>
+
+        <details class="cors-help" id="cors-help">
+          <summary>CORS Setup Instructions</summary>
+          <p style="font-size:12px;color:#a6adc8;margin:8px 0;">Add this CORS policy to your bucket settings:</p>
+          <pre id="cors-example">[
+  {
+    "AllowedOrigins": ["chrome-extension://*"],
+    "AllowedMethods": ["GET","PUT","DELETE","HEAD","POST"],
+    "AllowedHeaders": ["*"],
+    "ExposeHeaders": ["ETag","Content-Length","Content-Type","Last-Modified"],
+    "MaxAgeSeconds": 3600
+  }
+]</pre>
+        </details>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main App -->
+  <div class="app" id="main-app" style="display:none">
+
+    <!-- Header -->
+    <div class="header">
+      <div class="header-logo">
+        <div class="icon" id="header-icon">☁️</div>
+        <span id="header-title">Cumulus</span>
+      </div>
+      <div class="header-right">
+        <div class="server-switcher" id="server-switcher">
+          <select id="active-server-select" class="bucket-select" title="Switch server"></select>
+        </div>
+        <input type="text" class="bucket-select" id="bucket-name" readonly style="width:120px">
+        <button class="btn-icon" id="btn-settings" title="Settings">&#9881;</button>
+        <button class="btn-icon" id="btn-disconnect" title="Disconnect" style="color:var(--red)">&#10005;</button>
+      </div>
+    </div>
+
+    <!-- Breadcrumb -->
+    <div class="breadcrumb-bar">
+      <span class="label">Path:</span>
+      <div id="breadcrumb"></div>
+      <div class="breadcrumb-actions">
+        <button class="btn-icon" id="btn-up" title="Go Up">&#8593;</button>
+        <button class="btn-icon" id="btn-refresh" title="Refresh">&#8635;</button>
+      </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <button class="btn btn-primary" id="btn-upload">&#11014; Upload Files</button>
+      <button class="btn btn-primary" id="btn-upload-folder" style="background:var(--teal);border-color:var(--teal)">&#128194; Upload Folder</button>
+      <button class="btn" id="btn-new-folder">&#128193; New Folder</button>
+      <button class="btn" id="btn-batch-rename" title="Batch rename files">&#9998; Batch Rename</button>
+      <button class="btn btn-copy-links" id="btn-copy-links" disabled>&#128279; Copy Links</button>
+      <button class="btn btn-danger" id="btn-delete-selected" disabled>&#128465; Delete Selected</button>
+      <div class="toolbar-spacer"></div>
+      <div class="concurrent-control">
+        <label for="concurrent-count" title="Parallel uploads">Parallel:</label>
+        <input type="number" id="concurrent-count" min="1" max="50" value="20">
+      </div>
+      <input type="text" class="search-box" id="search-box" placeholder="Filter files...">
+    </div>
+
+    <!-- File Table -->
+    <div class="file-table-wrap" id="file-table-wrap">
+      <table class="file-table">
+        <thead>
+          <tr>
+            <th class="col-check"><input type="checkbox" id="check-all"></th>
+            <th class="col-name" data-sort="name">Name</th>
+            <th class="col-size" data-sort="size">Size</th>
+            <th class="col-modified" data-sort="modified">Modified</th>
+            <th class="col-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="file-tbody"></tbody>
+      </table>
+      <div class="empty-state" id="empty-state" style="display:none">
+        <div class="icon">&#128194;</div>
+        <p>This folder is empty</p>
+      </div>
+    </div>
+
+    <!-- Drop Zone -->
+    <div class="drop-zone visible" id="drop-zone">
+      Drop files or folders here to upload
+    </div>
+
+    <!-- Upload Progress -->
+    <div class="upload-progress" id="upload-progress"></div>
+
+    <!-- Log Panel -->
+    <div class="log-panel">
+      <div class="log-header" id="log-toggle">
+        <span class="arrow open" id="log-arrow">&#9654;</span>
+        <span>Activity Log</span>
+        <span id="log-count" style="color:var(--overlay0);font-weight:400"></span>
+      </div>
+      <div class="log-body" id="log-body"></div>
+    </div>
+  </div>
+
+  <!-- Drop Overlay -->
+  <div class="drop-overlay" id="drop-overlay">Drop files or folders to upload</div>
+
+  <!-- Preview Modal -->
+  <div class="modal-overlay" id="preview-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <span id="preview-title">Preview</span>
+        <button class="close" id="preview-close">&times;</button>
+      </div>
+      <div class="modal-body" id="preview-body"></div>
+    </div>
+  </div>
+
+  <!-- Confirm Dialog -->
+  <div class="modal-overlay" id="confirm-modal">
+    <div class="confirm-dialog">
+      <h3 id="confirm-title">Confirm</h3>
+      <p id="confirm-message">Are you sure?</p>
+      <div class="actions">
+        <button class="btn" id="confirm-cancel">Cancel</button>
+        <button class="btn btn-primary" id="confirm-ok" style="background:var(--red);border-color:var(--red);">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div class="settings-overlay" id="settings-modal">
+    <div class="setup-card" style="width:500px">
+      <h1 style="margin-bottom:16px">&#9881; Server Settings</h1>
+      <div id="settings-dynamic-fields"></div>
+      <div class="setup-actions">
+        <button class="btn" id="set-cancel" style="flex:1">Cancel</button>
+        <button class="btn btn-primary" id="set-save" style="flex:1">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Batch Rename Modal -->
+  <div class="modal-overlay" id="batch-rename-modal">
+    <div class="modal batch-rename-dialog">
+      <div class="modal-header">
+        <span>&#9998; Batch Rename</span>
+        <button class="close" id="batch-rename-close">&times;</button>
+      </div>
+      <div class="modal-body batch-rename-body">
+        <div class="batch-rename-scope">
+          <label>Scope:</label>
+          <select id="batch-rename-scope">
+            <option value="selected">Selected files only</option>
+            <option value="current">All files in current folder</option>
+          </select>
+          <span class="batch-rename-count" id="batch-rename-count">0 files</span>
+        </div>
+
+        <div class="batch-rename-rules" id="batch-rename-rules"></div>
+
+        <div class="batch-rename-add">
+          <label>Add rule:</label>
+          <select id="batch-rename-add-rule">
+            <option value="">— Select —</option>
+          </select>
+        </div>
+
+        <div class="batch-rename-preview-section">
+          <h4>Preview</h4>
+          <div class="batch-rename-preview" id="batch-rename-preview"></div>
+        </div>
+
+        <div class="batch-rename-actions">
+          <button class="btn" id="batch-rename-cancel">Cancel</button>
+          <button class="btn btn-primary" id="batch-rename-apply" style="background:var(--green);border-color:var(--green)">Apply Rename</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <input type="file" id="file-input" multiple style="display:none">
+  <input type="file" id="folder-input" webkitdirectory directory multiple style="display:none">
+
+  <script src="crypto-utils.js"></script>
+  <script src="storage-client.js"></script>
+  <script src="server-manager.js"></script>
+  <script src="batch-rename.js"></script>
+  <script src="manager.js"></script>
+</body>
+</html>
