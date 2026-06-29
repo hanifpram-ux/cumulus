@@ -26,7 +26,7 @@ Running on : Chrome, Vivaldi, Edge, Brave, Opera and All Browsed based Chromium.
 
 ## Features
 
-- **Multi-server management** — Save and switch between multiple storage servers (like FileZilla's Site Manager)
+- **Multi-server management** — Save and switch between multiple storage servers (like FileZilla's PRO Site Manager)
 - **File operations** — Upload, download, delete, rename, create folders
 - **Drag & drop** — Drop files or entire folders to upload
 - **Parallel uploads** — Configurable concurrent upload count (1-50)
