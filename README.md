@@ -7,7 +7,6 @@ Running on : Chrome, Vivaldi, Edge, Brave, Opera and All Browsed based Chromium.
 
 ![Cumulus Screenshot](screenshot.jpg)
 
-
 ## Supported Protocols
 
 ### Object Storage (S3-Compatible)
@@ -29,24 +28,53 @@ Running on : Chrome, Vivaldi, Edge, Brave, Opera and All Browsed based Chromium.
 
 ## Features
 
-- **Multi-server management** — Save and switch between multiple storage servers (like FileZilla's PRO Site Manager)
-- **File operations** — Upload, download, delete, rename, create folders
+### Multi-Server Management
+- Save and switch between multiple storage servers (like FileZilla's Site Manager)
+- Quick server switching via dropdown in the header
+- Each server stores its own protocol, credentials, and settings
+- Auto-reconnect to last active server on startup
+
+### Upload
+- **Parallel uploads** — Up to 50 concurrent uploads (configurable, default: 50)
 - **Drag & drop** — Drop files or entire folders to upload
-- **Parallel uploads** — Configurable concurrent upload count (1-50)
-- **Batch rename** — Advanced batch rename with stackable rules:
-  - Find & Replace (with regex support)
-  - Add numbering (prefix/suffix, configurable start/step/padding)
-  - Change case (lower/upper/title/sentence)
-  - Trim & clean whitespace
-  - Insert/remove text at position
-  - Replace spaces with custom character
-  - Change file extension
-  - Add date/time stamps
+- **Folder upload** — Upload entire folder structures with preserved hierarchy
+- **Progress tracking** — Real-time progress bar with percentage per file, speed, and ETA
+- **Transfer tabs** — Filter by All / Pending / Success / Failed
+- **Retry failed** — Retry individual files or all failed uploads at once
+
+### Download
+- **Parallel downloads** — Up to 50 concurrent downloads (configurable, default: 20)
+- **Folder download** — Select folders to recursively download all contents
+- **Preserved folder structure** — Downloaded files keep their original directory structure
+- **Real-time progress** — Live progress percentage, download speed (MB/s), and file size
+- **Transfer tabs** — Filter by All / Pending / Success / Failed
+- **Retry failed** — Retry individual files or all failed downloads at once
+
+### Batch Rename
+Advanced batch rename with stackable, reorderable rules and live preview:
+- Find & Replace (with regex support)
+- Add numbering (prefix/suffix, configurable start/step/padding)
+- Change case (lower/upper/title/sentence)
+- Trim & clean whitespace
+- Insert/remove text at position
+- Replace spaces with custom character
+- Change file extension
+- Add date/time stamps
+
+### File Management
 - **File preview** — Preview images, videos, and text files directly in the browser
+- **Inline rename** — Double-click any file to rename it
+- **Create folders** — Create new folders in any directory
+- **Delete** — Delete files or entire folders recursively
 - **Copy public URLs** — Single or bulk copy of file URLs with custom domain support
+- **Search / filter** — Quickly filter files in the current directory
+- **Sortable columns** — Sort by name, size, or modified date
+
+### Security & UI
+- **Encrypted credentials** — All credentials are encrypted with AES-256-GCM (PBKDF2 key derivation) before storage
+- **Dark theme** — shadcn/ui inspired zinc dark theme
 - **Activity log** — Real-time operation log with timestamps
-- **Encrypted credentials** — All credentials are encrypted with AES-256-GCM before storage
-- **Dark theme** — Catppuccin Mocha theme
+- **Responsive toolbar** — Upload/download parallel counts, search, and bulk actions
 
 ## Installation
 
@@ -89,7 +117,7 @@ cumulus/
 ├── server-manager.js      # Multi-server management & encrypted storage
 ├── batch-rename.js        # Batch rename engine with stackable rules
 ├── crypto-utils.js        # AES-GCM encryption, HMAC-SHA256, AWS Sig V4
-├── styles.css             # Catppuccin dark theme
+├── styles.css             # shadcn/ui inspired dark theme
 └── icons/                 # Extension icons
 ```
 
