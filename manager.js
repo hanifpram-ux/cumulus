@@ -335,8 +335,8 @@
       const info = ServerManager.getProtocolInfo(server.protocol);
       document.getElementById("header-icon").textContent = info.icon;
       document.getElementById("header-icon").style.background = info.iconColor;
-      document.getElementById("header-title").textContent = server.name || info.name;
-      document.getElementById("bucket-name").value = server.bucket || server.host || info.name;
+      document.getElementById("header-protocol").textContent = info.name;
+      document.getElementById("header-title").textContent = server.bucket || server.host || server.name || info.name;
 
       await updateServerSwitcher();
 
@@ -397,7 +397,7 @@
       allFiles = files;
       renderFileTable();
     } catch (e) {
-      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--red)">Error: ${escapeHtml(e.message)}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--destructive)">Error: ${escapeHtml(e.message)}</td></tr>`;
       log("Error loading folder: " + e.message, "error");
     }
   }
@@ -553,14 +553,19 @@
   function updateSelectionBtns() {
     const btn = document.getElementById("btn-delete-selected");
     const copyBtn = document.getElementById("btn-copy-links");
+    const dlBtn = document.getElementById("btn-download-selected");
     btn.disabled = selectedKeys.size === 0;
     copyBtn.disabled = selectedKeys.size === 0;
+    dlBtn.disabled = selectedKeys.size === 0;
     btn.innerHTML = selectedKeys.size > 0
       ? `\u{1F5D1} Delete (${selectedKeys.size})`
       : `\u{1F5D1} Delete Selected`;
     copyBtn.innerHTML = selectedKeys.size > 0
       ? `&#128279; Copy Links (${selectedKeys.size})`
       : `&#128279; Copy Links`;
+    dlBtn.innerHTML = selectedKeys.size > 0
+      ? `&#11015; Download (${selectedKeys.size})`
+      : `&#11015; Download`;
   }
 
   // Sort headers
@@ -741,9 +746,41 @@
     log(`Uploading ${totalCount} file(s) with ${maxConcurrent} parallel...`);
 
     const summaryDiv = document.createElement("div");
-    summaryDiv.className = "upload-summary";
-    summaryDiv.innerHTML = `<strong>0 / ${totalCount}</strong> — starting...`;
+    summaryDiv.className = "transfer-summary";
     progressEl.appendChild(summaryDiv);
+
+    const tabsDiv = document.createElement("div");
+    tabsDiv.className = "transfer-tabs";
+    tabsDiv.innerHTML = `
+      <button class="transfer-tab active" data-filter="all">All (${totalCount})</button>
+      <button class="transfer-tab" data-filter="pending">Pending (${totalCount})</button>
+      <button class="transfer-tab" data-filter="success">Success (0)</button>
+      <button class="transfer-tab" data-filter="failed">Failed (0)</button>
+    `;
+    progressEl.appendChild(tabsDiv);
+
+    let activeFilter = "all";
+    tabsDiv.addEventListener("click", (e) => {
+      const tab = e.target.closest(".transfer-tab");
+      if (!tab) return;
+      activeFilter = tab.dataset.filter;
+      tabsDiv.querySelectorAll(".transfer-tab").forEach(t => t.classList.remove("active"));
+      tab.classList.add("active");
+      applyFilter();
+    });
+
+    const retryAllBtn = document.createElement("button");
+    retryAllBtn.className = "btn btn-sm transfer-retry-all";
+    retryAllBtn.textContent = "Retry All Failed";
+    retryAllBtn.style.display = "none";
+    progressEl.appendChild(retryAllBtn);
+
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "btn btn-sm transfer-close";
+    closeBtn.textContent = "✕ Close";
+    closeBtn.style.display = "none";
+    closeBtn.addEventListener("click", () => { progressEl.classList.remove("active"); progressEl.innerHTML = ""; });
+    progressEl.appendChild(closeBtn);
 
     const listDiv = document.createElement("div");
     listDiv.className = "upload-list";
@@ -753,14 +790,38 @@
       const displayName = entry.relativePath;
       const div = document.createElement("div");
       div.className = "upload-item";
+      div.dataset.status = "pending";
       div.innerHTML = `
         <span class="name" title="${escapeHtml(displayName)}">${escapeHtml(displayName)}</span>
         <div class="progress-bar"><div class="progress-bar-fill" id="prog-${i}" style="width:0%"></div></div>
         <span class="pct" id="pct-${i}">0%</span>
+        <button class="btn-retry" id="retry-${i}" style="display:none" title="Retry">↻</button>
       `;
       listDiv.appendChild(div);
-      return { file: entry.file, relativePath: entry.relativePath, index: i, div };
+      return { file: entry.file, relativePath: entry.relativePath, index: i, div, status: "pending" };
     });
+
+    function applyFilter() {
+      items.forEach(item => {
+        if (activeFilter === "all" || item.status === activeFilter) {
+          item.div.style.display = "";
+        } else {
+          item.div.style.display = "none";
+        }
+      });
+    }
+
+    function updateTabs() {
+      const pending = items.filter(i => i.status === "pending").length;
+      const success = items.filter(i => i.status === "success").length;
+      const failed = items.filter(i => i.status === "failed").length;
+      const tabs = tabsDiv.querySelectorAll(".transfer-tab");
+      tabs[0].textContent = `All (${totalCount})`;
+      tabs[1].textContent = `Pending (${pending})`;
+      tabs[2].textContent = `Success (${success})`;
+      tabs[3].textContent = `Failed (${failed})`;
+      retryAllBtn.style.display = failed > 0 ? "inline-flex" : "none";
+    }
 
     function updateSummary() {
       const elapsed = (Date.now() - startTime) / 1000;
@@ -770,9 +831,13 @@
       summaryDiv.innerHTML = `<strong>${doneCount} / ${totalCount}</strong> — ✅ ${successCount} ❌ ${failCount} — ${speed} files/s — ${etaStr}`;
     }
 
-    async function uploadNext() {
-      if (idx >= items.length) return;
-      const item = items[idx++];
+    async function doUpload(item) {
+      item.status = "pending";
+      item.div.dataset.status = "pending";
+      document.getElementById(`prog-${item.index}`).style.width = "0%";
+      document.getElementById(`prog-${item.index}`).style.background = "";
+      document.getElementById(`pct-${item.index}`).textContent = "0%";
+      document.getElementById(`retry-${item.index}`).style.display = "none";
 
       const key = currentPrefix + item.relativePath;
       try {
@@ -781,18 +846,70 @@
           document.getElementById(`prog-${item.index}`).style.width = pct + "%";
           document.getElementById(`pct-${item.index}`).textContent = pct + "%";
         });
-        document.getElementById(`prog-${item.index}`).style.background = "var(--green)";
+        document.getElementById(`prog-${item.index}`).style.background = "var(--success)";
         document.getElementById(`pct-${item.index}`).textContent = "✓";
+        item.status = "success";
+        item.div.dataset.status = "success";
         successCount++;
       } catch (e) {
-        document.getElementById(`prog-${item.index}`).style.background = "var(--red)";
+        document.getElementById(`prog-${item.index}`).style.background = "var(--destructive)";
         document.getElementById(`pct-${item.index}`).textContent = "✗";
+        document.getElementById(`retry-${item.index}`).style.display = "inline-flex";
+        item.status = "failed";
+        item.div.dataset.status = "failed";
         log(`Upload failed: ${item.relativePath} — ${e.message}`, "error");
         failCount++;
       }
 
       doneCount++;
       updateSummary();
+      updateTabs();
+      applyFilter();
+    }
+
+    // Individual retry buttons
+    listDiv.addEventListener("click", async (e) => {
+      const retryBtn = e.target.closest(".btn-retry");
+      if (!retryBtn) return;
+      const idx2 = parseInt(retryBtn.id.replace("retry-", ""));
+      const item = items[idx2];
+      if (!item || item.status !== "failed") return;
+      failCount--;
+      doneCount--;
+      updateSummary();
+      await doUpload(item);
+    });
+
+    // Retry all failed
+    retryAllBtn.addEventListener("click", async () => {
+      const failedItems = items.filter(i => i.status === "failed");
+      if (failedItems.length === 0) return;
+      retryAllBtn.disabled = true;
+      retryAllBtn.textContent = "Retrying...";
+      for (const item of failedItems) {
+        failCount--;
+        doneCount--;
+      }
+      updateSummary();
+      const retryWorkers = [];
+      let retryIdx = 0;
+      const retryMax = Math.max(1, Math.min(50, parseInt(document.getElementById("concurrent-count").value) || 50));
+      async function retryNext() {
+        if (retryIdx >= failedItems.length) return;
+        const item = failedItems[retryIdx++];
+        await doUpload(item);
+        await retryNext();
+      }
+      for (let r = 0; r < Math.min(retryMax, failedItems.length); r++) retryWorkers.push(retryNext());
+      await Promise.all(retryWorkers);
+      retryAllBtn.disabled = false;
+      retryAllBtn.textContent = "Retry All Failed";
+    });
+
+    async function uploadNext() {
+      if (idx >= items.length) return;
+      const item = items[idx++];
+      await doUpload(item);
       await uploadNext();
     }
 
@@ -804,9 +921,12 @@
 
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     summaryDiv.innerHTML = `<strong>Done!</strong> ✅ ${successCount} ❌ ${failCount} / ${totalCount} — ${elapsed}s`;
+    closeBtn.style.display = "inline-flex";
+    if (failCount === 0) {
+      setTimeout(() => { progressEl.classList.remove("active"); progressEl.innerHTML = ""; }, 4000);
+    }
     log(`Upload complete: ${successCount}/${totalCount} in ${elapsed}s`, successCount === totalCount ? "success" : "warning");
     toast(`${successCount}/${totalCount} file(s) uploaded in ${elapsed}s`, successCount === totalCount ? "success" : "error");
-    setTimeout(() => { progressEl.classList.remove("active"); progressEl.innerHTML = ""; }, 4000);
     loadFolder(currentPrefix);
   }
 
@@ -826,6 +946,257 @@
       log(`Download failed: ${name} — ${e.message}`, "error");
       toast("Download failed: " + e.message, "error");
     }
+  }
+
+  // ── Parallel Download ──
+
+  document.getElementById("btn-download-selected").addEventListener("click", async () => {
+    if (selectedKeys.size === 0) return;
+
+    const fileKeys = [];
+    const folderKeys = [];
+    for (const k of selectedKeys) {
+      if (k.endsWith("/")) folderKeys.push(k);
+      else fileKeys.push(k);
+    }
+
+    if (folderKeys.length > 0) {
+      log(`Scanning ${folderKeys.length} folder(s) for download...`);
+      for (const prefix of folderKeys) {
+        let token = null;
+        do {
+          const result = await client.listObjects(prefix, "", token);
+          for (const f of result.files) fileKeys.push(f.key);
+          token = result.isTruncated ? result.nextToken : null;
+        } while (token);
+      }
+      log(`Found ${fileKeys.length} file(s) total`, "success");
+    }
+
+    if (fileKeys.length === 0) {
+      toast("No files to download", "info");
+      return;
+    }
+    if (fileKeys.length === 1 && folderKeys.length === 0) {
+      downloadFile(fileKeys[0]);
+      return;
+    }
+    const basePrefix = folderKeys.length > 0 ? currentPrefix : currentPrefix;
+    downloadMultiple(fileKeys, basePrefix);
+  });
+
+  function formatBytes(b) {
+    if (b === 0) return "0 B";
+    const u = ["B", "KB", "MB", "GB", "TB"];
+    const i = Math.floor(Math.log(b) / Math.log(1024));
+    return (b / Math.pow(1024, i)).toFixed(1) + " " + u[i];
+  }
+
+  async function downloadMultiple(keys, basePrefix) {
+    const progressEl = document.getElementById("download-progress");
+    progressEl.classList.add("active");
+    progressEl.innerHTML = "";
+
+    const maxConcurrent = Math.max(1, Math.min(50, parseInt(document.getElementById("concurrent-dl-count").value) || 20));
+    let idx = 0;
+    let doneCount = 0;
+    let successCount = 0;
+    let failCount = 0;
+    let totalBytes = 0;
+    const totalCount = keys.length;
+    const startTime = Date.now();
+
+    log(`Downloading ${totalCount} file(s) with ${maxConcurrent} parallel...`);
+
+    const summaryDiv = document.createElement("div");
+    summaryDiv.className = "transfer-summary";
+    progressEl.appendChild(summaryDiv);
+
+    const tabsDiv = document.createElement("div");
+    tabsDiv.className = "transfer-tabs";
+    tabsDiv.innerHTML = `
+      <button class="transfer-tab active" data-filter="all">All (${totalCount})</button>
+      <button class="transfer-tab" data-filter="pending">Pending (${totalCount})</button>
+      <button class="transfer-tab" data-filter="success">Success (0)</button>
+      <button class="transfer-tab" data-filter="failed">Failed (0)</button>
+    `;
+    progressEl.appendChild(tabsDiv);
+
+    let activeFilter = "all";
+    tabsDiv.addEventListener("click", (e) => {
+      const tab = e.target.closest(".transfer-tab");
+      if (!tab) return;
+      activeFilter = tab.dataset.filter;
+      tabsDiv.querySelectorAll(".transfer-tab").forEach(t => t.classList.remove("active"));
+      tab.classList.add("active");
+      applyFilter();
+    });
+
+    const retryAllBtn = document.createElement("button");
+    retryAllBtn.className = "btn btn-sm transfer-retry-all";
+    retryAllBtn.textContent = "Retry All Failed";
+    retryAllBtn.style.display = "none";
+    progressEl.appendChild(retryAllBtn);
+
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "btn btn-sm transfer-close";
+    closeBtn.textContent = "✕ Close";
+    closeBtn.style.display = "none";
+    closeBtn.addEventListener("click", () => { progressEl.classList.remove("active"); progressEl.innerHTML = ""; });
+    progressEl.appendChild(closeBtn);
+
+    const listDiv = document.createElement("div");
+    listDiv.className = "upload-list";
+    progressEl.appendChild(listDiv);
+
+    const items = keys.map((key, i) => {
+      const relativePath = key.startsWith(basePrefix) ? key.substring(basePrefix.length) : key;
+      const div = document.createElement("div");
+      div.className = "upload-item";
+      div.dataset.status = "pending";
+      div.innerHTML = `
+        <span class="name" title="${escapeHtml(relativePath)}">${escapeHtml(relativePath)}</span>
+        <div class="progress-bar"><div class="progress-bar-fill" id="dl-prog-${i}" style="width:0%"></div></div>
+        <span class="pct" id="dl-pct-${i}">0%</span>
+        <button class="btn-retry" id="dl-retry-${i}" style="display:none" title="Retry">↻</button>
+      `;
+      listDiv.appendChild(div);
+      return { key, relativePath, index: i, div, status: "pending" };
+    });
+
+    function applyFilter() {
+      items.forEach(item => {
+        item.div.style.display = (activeFilter === "all" || item.status === activeFilter) ? "" : "none";
+      });
+    }
+
+    function updateTabs() {
+      const pending = items.filter(i => i.status === "pending").length;
+      const success = items.filter(i => i.status === "success").length;
+      const failed = items.filter(i => i.status === "failed").length;
+      const tabs = tabsDiv.querySelectorAll(".transfer-tab");
+      tabs[0].textContent = `All (${totalCount})`;
+      tabs[1].textContent = `Pending (${pending})`;
+      tabs[2].textContent = `Success (${success})`;
+      tabs[3].textContent = `Failed (${failed})`;
+      retryAllBtn.style.display = failed > 0 ? "inline-flex" : "none";
+    }
+
+    function updateSummary() {
+      const elapsed = (Date.now() - startTime) / 1000;
+      const speed = elapsed > 0 ? formatBytes(totalBytes / elapsed) + "/s" : "—";
+      const eta = doneCount > 0 ? Math.round(((totalCount - doneCount) / (doneCount / elapsed))) : "—";
+      const etaStr = typeof eta === "number" ? `${eta}s left` : eta;
+      summaryDiv.innerHTML = `<strong>${doneCount} / ${totalCount}</strong> — ✅ ${successCount} ❌ ${failCount} — ${speed} — ${etaStr}`;
+    }
+
+    async function doDownload(item) {
+      item.status = "pending";
+      item.div.dataset.status = "pending";
+      document.getElementById(`dl-prog-${item.index}`).style.width = "0%";
+      document.getElementById(`dl-prog-${item.index}`).style.background = "";
+      document.getElementById(`dl-pct-${item.index}`).textContent = "0%";
+      document.getElementById(`dl-retry-${item.index}`).style.display = "none";
+
+      try {
+        const blob = await client.downloadFile(item.key, (loaded, total) => {
+          if (total > 0) {
+            const pct = Math.round((loaded / total) * 100);
+            document.getElementById(`dl-prog-${item.index}`).style.width = pct + "%";
+            document.getElementById(`dl-pct-${item.index}`).textContent = pct + "%";
+          } else {
+            document.getElementById(`dl-pct-${item.index}`).textContent = formatBytes(loaded);
+          }
+        });
+
+        const url = URL.createObjectURL(blob);
+        chrome.downloads.download({ url, filename: item.relativePath }, () => {
+          URL.revokeObjectURL(url);
+        });
+
+        totalBytes += blob.size;
+        document.getElementById(`dl-prog-${item.index}`).style.width = "100%";
+        document.getElementById(`dl-prog-${item.index}`).style.background = "var(--success)";
+        document.getElementById(`dl-pct-${item.index}`).textContent = "✓ " + formatBytes(blob.size);
+        item.status = "success";
+        item.div.dataset.status = "success";
+        successCount++;
+      } catch (e) {
+        document.getElementById(`dl-prog-${item.index}`).style.width = "100%";
+        document.getElementById(`dl-prog-${item.index}`).style.background = "var(--destructive)";
+        document.getElementById(`dl-pct-${item.index}`).textContent = "✗";
+        document.getElementById(`dl-retry-${item.index}`).style.display = "inline-flex";
+        item.status = "failed";
+        item.div.dataset.status = "failed";
+        log(`Download failed: ${item.relativePath} — ${e.message}`, "error");
+        failCount++;
+      }
+
+      doneCount++;
+      updateSummary();
+      updateTabs();
+      applyFilter();
+    }
+
+    // Individual retry
+    listDiv.addEventListener("click", async (e) => {
+      const retryBtn = e.target.closest(".btn-retry");
+      if (!retryBtn) return;
+      const idx2 = parseInt(retryBtn.id.replace("dl-retry-", ""));
+      const item = items[idx2];
+      if (!item || item.status !== "failed") return;
+      failCount--;
+      doneCount--;
+      updateSummary();
+      await doDownload(item);
+    });
+
+    // Retry all failed
+    retryAllBtn.addEventListener("click", async () => {
+      const failedItems = items.filter(i => i.status === "failed");
+      if (failedItems.length === 0) return;
+      retryAllBtn.disabled = true;
+      retryAllBtn.textContent = "Retrying...";
+      for (const item of failedItems) {
+        failCount--;
+        doneCount--;
+      }
+      updateSummary();
+      const retryWorkers = [];
+      let retryIdx = 0;
+      async function retryNext() {
+        if (retryIdx >= failedItems.length) return;
+        const item = failedItems[retryIdx++];
+        await doDownload(item);
+        await retryNext();
+      }
+      for (let r = 0; r < Math.min(maxConcurrent, failedItems.length); r++) retryWorkers.push(retryNext());
+      await Promise.all(retryWorkers);
+      retryAllBtn.disabled = false;
+      retryAllBtn.textContent = "Retry All Failed";
+    });
+
+    async function downloadNext() {
+      if (idx >= items.length) return;
+      const item = items[idx++];
+      await doDownload(item);
+      await downloadNext();
+    }
+
+    const workers = [];
+    for (let i = 0; i < Math.min(maxConcurrent, totalCount); i++) {
+      workers.push(downloadNext());
+    }
+    await Promise.all(workers);
+
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+    summaryDiv.innerHTML = `<strong>Done!</strong> ✅ ${successCount} ❌ ${failCount} / ${totalCount} — ${formatBytes(totalBytes)} in ${elapsed}s`;
+    closeBtn.style.display = "inline-flex";
+    if (failCount === 0) {
+      setTimeout(() => { progressEl.classList.remove("active"); progressEl.innerHTML = ""; }, 5000);
+    }
+    log(`Download complete: ${successCount}/${totalCount} (${formatBytes(totalBytes)}) in ${elapsed}s`, successCount === totalCount ? "success" : "warning");
+    toast(`${successCount}/${totalCount} file(s) downloaded in ${elapsed}s`, successCount === totalCount ? "success" : "error");
   }
 
   // ── Copy URL ──
@@ -993,7 +1364,7 @@
         body.innerHTML = `<p>Preview not available for this file type.</p>`;
       }
     } catch (e) {
-      body.innerHTML = `<p style="color:var(--red)">Failed to load preview: ${escapeHtml(e.message)}</p>`;
+      body.innerHTML = `<p style="color:var(--destructive)">Failed to load preview: ${escapeHtml(e.message)}</p>`;
     }
   }
 
@@ -1091,8 +1462,8 @@
     client = createStorageClient(updated);
 
     const updatedInfo = ServerManager.getProtocolInfo(updated.protocol);
-    document.getElementById("header-title").textContent = updated.name || updatedInfo.name;
-    document.getElementById("bucket-name").value = updated.bucket || updated.host || updatedInfo.name;
+    document.getElementById("header-protocol").textContent = updatedInfo.name;
+    document.getElementById("header-title").textContent = updated.bucket || updated.host || updated.name || updatedInfo.name;
 
     await updateServerSwitcher();
 
@@ -1187,7 +1558,7 @@
           <div class="batch-rule-actions">
             ${idx > 0 ? `<button class="btn-icon btn-xs rule-move-up" data-idx="${idx}" title="Move up">↑</button>` : ""}
             ${idx < batchRenameRules.length - 1 ? `<button class="btn-icon btn-xs rule-move-down" data-idx="${idx}" title="Move down">↓</button>` : ""}
-            <button class="btn-icon btn-xs rule-remove" data-idx="${idx}" title="Remove" style="color:var(--red)">×</button>
+            <button class="btn-icon btn-xs rule-remove" data-idx="${idx}" title="Remove" style="color:var(--destructive)">×</button>
           </div>
         </div>
         <div class="batch-rule-body">${BatchRename.renderRuleEditor(rule)}</div>
@@ -1309,7 +1680,7 @@
           <td class="${changed ? "new-name" : ""}">${escapeHtml(r.newName || r.name)}</td>
         </tr>`;
       }).join("")}</tbody>
-    </table>` + (results.length > maxShow ? `<div style="padding:8px;color:var(--overlay0);font-size:12px">... and ${results.length - maxShow} more</div>` : "");
+    </table>` + (results.length > maxShow ? `<div style="padding:8px;color:var(--muted-foreground);font-size:12px">... and ${results.length - maxShow} more</div>` : "");
   }
 
   document.getElementById("batch-rename-apply").addEventListener("click", async () => {
@@ -1403,8 +1774,8 @@
           const info = ServerManager.getProtocolInfo(server.protocol);
           document.getElementById("header-icon").textContent = info.icon;
           document.getElementById("header-icon").style.background = info.iconColor;
-          document.getElementById("header-title").textContent = server.name || info.name;
-          document.getElementById("bucket-name").value = server.bucket || server.host || info.name;
+          document.getElementById("header-protocol").textContent = info.name;
+          document.getElementById("header-title").textContent = server.bucket || server.host || server.name || info.name;
 
           await updateServerSwitcher();
           showApp();

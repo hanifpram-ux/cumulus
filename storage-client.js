@@ -6,7 +6,7 @@ class StorageClient {
   async testConnection() { throw new Error("Not implemented"); }
   async listObjects(prefix, delimiter, continuationToken) { throw new Error("Not implemented"); }
   async uploadFile(key, file, onProgress) { throw new Error("Not implemented"); }
-  async downloadFile(key) { throw new Error("Not implemented"); }
+  async downloadFile(key, onProgress) { throw new Error("Not implemented"); }
   async deleteObject(key) { throw new Error("Not implemented"); }
   async deleteObjects(keys) {
     for (const key of keys) await this.deleteObject(key);
@@ -214,9 +214,35 @@ class S3Client extends StorageClient {
     });
   }
 
-  async downloadFile(key) {
-    const resp = await this.request("GET", `/${this.bucket}/${encodeS3Key(key)}`);
-    return resp.blob();
+  async downloadFile(key, onProgress = null) {
+    if (!onProgress) {
+      const resp = await this.request("GET", `/${this.bucket}/${encodeS3Key(key)}`);
+      return resp.blob();
+    }
+
+    const { url, headers } = await this.signRequest("GET", `/${this.bucket}/${encodeS3Key(key)}`);
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("GET", url);
+      xhr.responseType = "blob";
+      for (const [k, v] of Object.entries(headers)) {
+        xhr.setRequestHeader(k, v);
+      }
+      xhr.onprogress = (e) => {
+        if (e.lengthComputable) onProgress(e.loaded, e.total);
+        else if (e.loaded) onProgress(e.loaded, 0);
+      };
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          onProgress(1, 1);
+          resolve(xhr.response);
+        } else {
+          reject(new StorageError(xhr.status, "", "GET", key));
+        }
+      };
+      xhr.onerror = () => reject(new Error("Network error during download"));
+      xhr.send();
+    });
   }
 
   async deleteObject(key) {
@@ -399,13 +425,35 @@ class WebDAVClient extends StorageClient {
     });
   }
 
-  async downloadFile(key) {
-    const resp = await fetch(this._fullUrl(key), {
-      method: "GET",
-      headers: this._authHeaders(),
+  async downloadFile(key, onProgress = null) {
+    if (!onProgress) {
+      const resp = await fetch(this._fullUrl(key), { method: "GET", headers: this._authHeaders() });
+      if (!resp.ok) throw new StorageError(resp.status, await resp.text(), "GET", key);
+      return resp.blob();
+    }
+
+    const url = this._fullUrl(key);
+    const auth = this._authHeaders();
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("GET", url);
+      xhr.responseType = "blob";
+      for (const [k, v] of Object.entries(auth)) xhr.setRequestHeader(k, v);
+      xhr.onprogress = (e) => {
+        if (e.lengthComputable) onProgress(e.loaded, e.total);
+        else if (e.loaded) onProgress(e.loaded, 0);
+      };
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          onProgress(1, 1);
+          resolve(xhr.response);
+        } else {
+          reject(new StorageError(xhr.status, "", "GET", key));
+        }
+      };
+      xhr.onerror = () => reject(new Error("Network error during download"));
+      xhr.send();
     });
-    if (!resp.ok) throw new StorageError(resp.status, await resp.text(), "GET", key);
-    return resp.blob();
   }
 
   async deleteObject(key) {

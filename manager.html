@@ -11,7 +11,7 @@
   <!-- Setup Page -->
   <div class="setup-page" id="setup-page">
     <div class="setup-card" style="width:500px">
-      <h1><span style="background:var(--blue);color:var(--crust);padding:2px 8px;border-radius:6px;font-size:14px;">☁️</span> Cumulus</h1>
+      <h1><span style="background:var(--foreground);color:var(--background);padding:2px 8px;border-radius:6px;font-size:13px;">☁️</span> Cumulus</h1>
       <p class="subtitle">Connect to your cloud storage</p>
       <p class="setup-credit">Made with &hearts; by <a href="https://hanifprm.my.id" target="_blank">Hanif Pramono</a> &bull; <a href="https://github.com/hanifpram-ux/cumulus" target="_blank">Open Source (GPL v3)</a></p>
 
@@ -60,7 +60,7 @@
 
         <div class="setup-actions">
           <button class="btn btn-primary" id="setup-test" style="flex:1">Test Connection</button>
-          <button class="btn btn-primary" id="setup-save" style="flex:1;background:var(--green);border-color:var(--green)" disabled>Save & Connect</button>
+          <button class="btn btn-primary" id="setup-save" style="flex:1;background:var(--success);border-color:var(--success);color:var(--success-foreground)" disabled>Save & Connect</button>
         </div>
 
         <div class="setup-error" id="setup-error"></div>
@@ -90,15 +90,18 @@
     <div class="header">
       <div class="header-logo">
         <div class="icon" id="header-icon">☁️</div>
-        <span id="header-title">Cumulus</span>
+        <span class="header-app-name">Cumulus</span>
+        <span class="header-sep">—</span>
+        <span class="header-protocol" id="header-protocol"></span>
+        <span class="header-sep">—</span>
+        <span class="header-server-name" id="header-title"></span>
       </div>
       <div class="header-right">
         <div class="server-switcher" id="server-switcher">
           <select id="active-server-select" class="bucket-select" title="Switch server"></select>
         </div>
-        <input type="text" class="bucket-select" id="bucket-name" readonly style="width:120px">
         <button class="btn-icon" id="btn-settings" title="Settings">&#9881;</button>
-        <button class="btn-icon" id="btn-disconnect" title="Disconnect" style="color:var(--red)">&#10005;</button>
+        <button class="btn-icon" id="btn-disconnect" title="Disconnect" style="color:var(--destructive)">&#10005;</button>
       </div>
     </div>
 
@@ -115,15 +118,20 @@
     <!-- Toolbar -->
     <div class="toolbar">
       <button class="btn btn-primary" id="btn-upload">&#11014; Upload Files</button>
-      <button class="btn btn-primary" id="btn-upload-folder" style="background:var(--teal);border-color:var(--teal)">&#128194; Upload Folder</button>
+      <button class="btn btn-primary" id="btn-upload-folder" style="background:var(--secondary);border-color:var(--border);color:var(--foreground)">&#128194; Upload Folder</button>
       <button class="btn" id="btn-new-folder">&#128193; New Folder</button>
       <button class="btn" id="btn-batch-rename" title="Batch rename files">&#9998; Batch Rename</button>
+      <button class="btn" id="btn-download-selected" disabled>&#11015; Download</button>
       <button class="btn btn-copy-links" id="btn-copy-links" disabled>&#128279; Copy Links</button>
       <button class="btn btn-danger" id="btn-delete-selected" disabled>&#128465; Delete Selected</button>
       <div class="toolbar-spacer"></div>
       <div class="concurrent-control">
-        <label for="concurrent-count" title="Parallel uploads">Parallel:</label>
-        <input type="number" id="concurrent-count" min="1" max="50" value="20">
+        <label title="Parallel uploads">&#11014;</label>
+        <input type="number" id="concurrent-count" min="1" max="50" value="50" title="Parallel uploads">
+      </div>
+      <div class="concurrent-control">
+        <label title="Parallel downloads">&#11015;</label>
+        <input type="number" id="concurrent-dl-count" min="1" max="50" value="20" title="Parallel downloads">
       </div>
       <input type="text" class="search-box" id="search-box" placeholder="Filter files...">
     </div>
@@ -156,14 +164,22 @@
     <!-- Upload Progress -->
     <div class="upload-progress" id="upload-progress"></div>
 
+    <!-- Download Progress -->
+    <div class="upload-progress" id="download-progress"></div>
+
     <!-- Log Panel -->
     <div class="log-panel">
       <div class="log-header" id="log-toggle">
         <span class="arrow open" id="log-arrow">&#9654;</span>
         <span>Activity Log</span>
-        <span id="log-count" style="color:var(--overlay0);font-weight:400"></span>
+        <span id="log-count" style="color:var(--muted-foreground);font-weight:400"></span>
       </div>
       <div class="log-body" id="log-body"></div>
+    </div>
+
+    <!-- Footer -->
+    <div class="app-footer">
+      Made with &hearts; by <a href="https://hanifprm.my.id" target="_blank">Hanif Pramono</a> &bull; <a href="https://github.com/hanifpram-ux/cumulus" target="_blank">GitHub</a>
     </div>
   </div>
 
@@ -188,7 +204,7 @@
       <p id="confirm-message">Are you sure?</p>
       <div class="actions">
         <button class="btn" id="confirm-cancel">Cancel</button>
-        <button class="btn btn-primary" id="confirm-ok" style="background:var(--red);border-color:var(--red);">Delete</button>
+        <button class="btn btn-primary" id="confirm-ok" style="background:var(--destructive);border-color:var(--destructive);color:var(--destructive-foreground);">Delete</button>
       </div>
     </div>
   </div>
@@ -238,7 +254,7 @@
 
         <div class="batch-rename-actions">
           <button class="btn" id="batch-rename-cancel">Cancel</button>
-          <button class="btn btn-primary" id="batch-rename-apply" style="background:var(--green);border-color:var(--green)">Apply Rename</button>
+          <button class="btn btn-primary" id="batch-rename-apply" style="background:var(--success);border-color:var(--success);color:var(--success-foreground)">Apply Rename</button>
         </div>
       </div>
     </div>
