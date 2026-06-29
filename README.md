@@ -5,6 +5,9 @@
 A Chrome extension that lets you browse, upload, download, rename, and manage files across multiple cloud storage providers. Think FileZilla, but as a browser extension.
 Running on : Chrome, Vivaldi, Edge, Brave, Opera and All Browsed based Chromium.
 
+![Cumulus Screenshot](screenshot.jpg)
+
+
 ## Supported Protocols
 
 ### Object Storage (S3-Compatible)
