@@ -65,10 +65,12 @@ Advanced batch rename with stackable, reorderable rules and live preview:
 - **File preview** — Preview images, videos, and text files directly in the browser
 - **Inline rename** — Double-click any file to rename it
 - **Create folders** — Create new folders in any directory
+- **Copy / Move / Paste** — Clipboard-style copy or move of files and folders between directories on the same server, with Skip / Replace / Rename conflict resolution (plus "apply to all") when a name already exists at the destination
 - **Delete** — Delete files or entire folders recursively
 - **Copy public URLs** — Single or bulk copy of file URLs with custom domain support
 - **Search / filter** — Quickly filter files in the current directory
 - **Sortable columns** — Sort by name, size, or modified date
+- **List / Grid view** — Toggle between the classic table view and a grid view with image/video thumbnails (lazy-loaded) and type icons; your preference is remembered
 
 ### Security & UI
 - **Encrypted credentials** — All credentials are encrypted with AES-256-GCM (PBKDF2 key derivation) before storage
@@ -116,6 +118,8 @@ cumulus/
 ├── storage-client.js      # Storage protocol implementations (S3, WebDAV)
 ├── server-manager.js      # Multi-server management & encrypted storage
 ├── batch-rename.js        # Batch rename engine with stackable rules
+├── clipboard.js           # Copy/Move/Paste clipboard state & execution
+├── view-mode.js           # List/Grid view state, persistence & rendering
 ├── crypto-utils.js        # AES-GCM encryption, HMAC-SHA256, AWS Sig V4
 ├── styles.css             # shadcn/ui inspired dark theme
 └── icons/                 # Extension icons

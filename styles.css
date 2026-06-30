@@ -1291,3 +1291,104 @@ input[type="checkbox"] {
   gap: 8px;
   justify-content: flex-end;
 }
+
+.clipboard-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 16px;
+  background: var(--accent);
+  border-bottom: 1px solid var(--border);
+  color: var(--accent-foreground);
+  font-size: 13px;
+}
+
+.clipboard-bar-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.view-toggle {
+  display: flex;
+  gap: 2px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.view-toggle-btn {
+  border-radius: 0;
+  border: none;
+}
+
+.view-toggle-btn.active {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.file-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+  padding: 16px;
+}
+
+.grid-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  cursor: pointer;
+  position: relative;
+}
+
+.grid-card:hover {
+  background: var(--accent);
+}
+
+.grid-card.selected {
+  outline: 2px solid var(--primary);
+}
+
+.grid-card-check {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+}
+
+.grid-card-thumb {
+  width: 100%;
+  height: 90px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.grid-card-thumb img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.grid-card-name {
+  font-size: 12px;
+  text-align: center;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.grid-card-size {
+  font-size: 11px;
+  color: var(--muted-foreground);
+  margin-top: 2px;
+}

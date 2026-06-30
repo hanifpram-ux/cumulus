@@ -121,6 +121,8 @@
       <button class="btn btn-primary" id="btn-upload-folder" style="background:var(--secondary);border-color:var(--border);color:var(--foreground)">&#128194; Upload Folder</button>
       <button class="btn" id="btn-new-folder">&#128193; New Folder</button>
       <button class="btn" id="btn-batch-rename" title="Batch rename files">&#9998; Batch Rename</button>
+      <button class="btn" id="btn-copy-selected" disabled title="Copy selected items">&#128203; Copy</button>
+      <button class="btn" id="btn-move-selected" disabled title="Move selected items">&#9986; Move</button>
       <button class="btn" id="btn-download-selected" disabled>&#11015; Download</button>
       <button class="btn btn-copy-links" id="btn-copy-links" disabled>&#128279; Copy Links</button>
       <button class="btn btn-danger" id="btn-delete-selected" disabled>&#128465; Delete Selected</button>
@@ -133,7 +135,20 @@
         <label title="Parallel downloads">&#11015;</label>
         <input type="number" id="concurrent-dl-count" min="1" max="50" value="20" title="Parallel downloads">
       </div>
+      <div class="view-toggle">
+        <button class="btn-icon view-toggle-btn active" id="btn-view-list" title="List view">&#9638;</button>
+        <button class="btn-icon view-toggle-btn" id="btn-view-grid" title="Grid view">&#9639;</button>
+      </div>
       <input type="text" class="search-box" id="search-box" placeholder="Filter files...">
+    </div>
+
+    <!-- Clipboard Bar -->
+    <div class="clipboard-bar" id="clipboard-bar" style="display:none">
+      <span id="clipboard-bar-text"></span>
+      <div class="clipboard-bar-actions">
+        <button class="btn btn-primary" id="btn-paste">&#128229; Paste</button>
+        <button class="btn" id="btn-clipboard-cancel">Cancel</button>
+      </div>
     </div>
 
     <!-- File Table -->
@@ -155,6 +170,8 @@
         <p>This folder is empty</p>
       </div>
     </div>
+
+    <div class="file-grid" id="file-grid" style="display:none"></div>
 
     <!-- Drop Zone -->
     <div class="drop-zone visible" id="drop-zone">
@@ -205,6 +222,25 @@
       <div class="actions">
         <button class="btn" id="confirm-cancel">Cancel</button>
         <button class="btn btn-primary" id="confirm-ok" style="background:var(--destructive);border-color:var(--destructive);color:var(--destructive-foreground);">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Conflict Resolution Modal -->
+  <div class="modal-overlay" id="conflict-modal">
+    <div class="confirm-dialog">
+      <h3>File Already Exists</h3>
+      <p id="conflict-message"></p>
+      <label style="display:flex;align-items:center;gap:6px;margin:10px 0;font-size:13px">
+        <input type="checkbox" id="conflict-apply-all"> Apply to all remaining conflicts
+      </label>
+      <div id="conflict-rename-row" style="display:none;margin-bottom:10px">
+        <input type="text" id="conflict-rename-input" class="rename-input" style="width:100%">
+      </div>
+      <div class="actions">
+        <button class="btn" id="conflict-skip">Skip</button>
+        <button class="btn" id="conflict-rename">Rename</button>
+        <button class="btn btn-primary" id="conflict-replace">Replace</button>
       </div>
     </div>
   </div>
@@ -267,6 +303,8 @@
   <script src="storage-client.js"></script>
   <script src="server-manager.js"></script>
   <script src="batch-rename.js"></script>
+  <script src="clipboard.js"></script>
+  <script src="view-mode.js"></script>
   <script src="manager.js"></script>
 </body>
 </html>

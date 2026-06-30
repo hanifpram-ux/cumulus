@@ -17,6 +17,18 @@
 
   ServerManager.init(ENCRYPTION_PASS);
 
+  window.ViewMode.init();
+
+  document.getElementById("btn-view-list").addEventListener("click", async () => {
+    await window.ViewMode.set("list");
+    renderFileTable();
+  });
+
+  document.getElementById("btn-view-grid").addEventListener("click", async () => {
+    await window.ViewMode.set("grid");
+    renderFileTable();
+  });
+
   // ── Toast ──
 
   function toast(msg, type = "info") {
@@ -431,6 +443,12 @@
 
     const items = [...folders, ...files];
 
+    if (window.ViewMode.get() === "grid") {
+      document.getElementById("empty-state").style.display = items.length === 0 ? "block" : "none";
+      window.ViewMode.renderGrid(items, selectedKeys);
+      return;
+    }
+
     if (items.length === 0) {
       tbody.innerHTML = "";
       document.getElementById("empty-state").style.display = "block";
@@ -554,9 +572,13 @@
     const btn = document.getElementById("btn-delete-selected");
     const copyBtn = document.getElementById("btn-copy-links");
     const dlBtn = document.getElementById("btn-download-selected");
+    const copySelBtn = document.getElementById("btn-copy-selected");
+    const moveSelBtn = document.getElementById("btn-move-selected");
     btn.disabled = selectedKeys.size === 0;
     copyBtn.disabled = selectedKeys.size === 0;
     dlBtn.disabled = selectedKeys.size === 0;
+    copySelBtn.disabled = selectedKeys.size === 0;
+    moveSelBtn.disabled = selectedKeys.size === 0;
     btn.innerHTML = selectedKeys.size > 0
       ? `\u{1F5D1} Delete (${selectedKeys.size})`
       : `\u{1F5D1} Delete Selected`;
@@ -626,6 +648,30 @@
       if (ev.key === "Escape") loadFolder(currentPrefix);
     });
     input.addEventListener("blur", finish);
+  });
+
+  // ── Grid view events ──
+
+  document.getElementById("file-grid").addEventListener("click", (e) => {
+    if (e.target.classList.contains("grid-card-check")) return; // handled by change listener
+    const card = e.target.closest(".grid-card");
+    if (!card) return;
+    const key = card.dataset.key;
+    const isFolder = card.dataset.folder === "1";
+    if (isFolder) {
+      loadFolder(key);
+    } else if (isPreviewable(getFileName(key))) {
+      previewFile(key);
+    }
+  });
+
+  document.getElementById("file-grid").addEventListener("change", (e) => {
+    if (!e.target.classList.contains("grid-card-check")) return;
+    const key = e.target.dataset.key;
+    if (e.target.checked) selectedKeys.add(key);
+    else selectedKeys.delete(key);
+    updateSelectionBtns();
+    e.target.closest(".grid-card").classList.toggle("selected", e.target.checked);
   });
 
   // ══════════════════════════════════════════════
@@ -1234,6 +1280,105 @@
     if (selectedKeys.size > 0) copyMultipleUrls(Array.from(selectedKeys));
   });
 
+  // ── Clipboard (Copy/Move/Paste) ──
+
+  function updateClipboardBar() {
+    const bar = document.getElementById("clipboard-bar");
+    const text = document.getElementById("clipboard-bar-text");
+    const pasteBtn = document.getElementById("btn-paste");
+
+    if (window.Clipboard.isEmpty()) {
+      bar.style.display = "none";
+      return;
+    }
+
+    const { mode, sourcePrefix, items } = window.Clipboard.getState();
+    bar.style.display = "flex";
+    text.textContent = `${items.length} item(s) ${mode === "cut" ? "cut" : "copied"} from /${sourcePrefix}`;
+    pasteBtn.disabled = false;
+  }
+
+  document.getElementById("btn-copy-selected").addEventListener("click", () => {
+    window.Clipboard.set("copy");
+    updateClipboardBar();
+    toast(`${selectedKeys.size} item(s) copied`, "info");
+  });
+
+  document.getElementById("btn-move-selected").addEventListener("click", () => {
+    window.Clipboard.set("cut");
+    updateClipboardBar();
+    toast(`${selectedKeys.size} item(s) cut`, "info");
+  });
+
+  document.getElementById("btn-clipboard-cancel").addEventListener("click", () => {
+    window.Clipboard.clear();
+    updateClipboardBar();
+  });
+
+  function resolveConflictViaModal(conflictingKey, isFolder) {
+    return new Promise((resolve) => {
+      const modal = document.getElementById("conflict-modal");
+      const msg = document.getElementById("conflict-message");
+      const applyAllCheck = document.getElementById("conflict-apply-all");
+      const renameRow = document.getElementById("conflict-rename-row");
+      const renameInput = document.getElementById("conflict-rename-input");
+      const skipBtn = document.getElementById("conflict-skip");
+      const renameBtn = document.getElementById("conflict-rename");
+      const replaceBtn = document.getElementById("conflict-replace");
+
+      const name = getFileName(conflictingKey);
+      msg.textContent = `"${name}" already exists in this folder.`;
+      renameRow.style.display = "none";
+      applyAllCheck.checked = false;
+      modal.classList.add("active");
+
+      const cleanup = () => {
+        modal.classList.remove("active");
+        skipBtn.removeEventListener("click", onSkip);
+        renameBtn.removeEventListener("click", onRenameClick);
+        replaceBtn.removeEventListener("click", onReplace);
+      };
+
+      const finish = (result) => {
+        cleanup();
+        resolve({ ...result, applyToAll: applyAllCheck.checked });
+      };
+
+      const onSkip = () => finish({ action: "skip" });
+      const onReplace = () => finish({ action: "replace" });
+      const onRenameClick = () => {
+        if (renameRow.style.display === "none") {
+          renameRow.style.display = "block";
+          const ext = name.includes(".") ? "." + name.split(".").pop() : "";
+          const base = ext ? name.slice(0, -ext.length) : name;
+          renameInput.value = `${base} (1)${ext}`;
+          renameInput.focus();
+          renameInput.select();
+          return;
+        }
+        finish({ action: "rename", newName: renameInput.value.trim() || name });
+      };
+
+      skipBtn.addEventListener("click", onSkip);
+      renameBtn.addEventListener("click", onRenameClick);
+      replaceBtn.addEventListener("click", onReplace);
+    });
+  }
+
+  document.getElementById("btn-paste").addEventListener("click", async () => {
+    const pasteBtn = document.getElementById("btn-paste");
+    pasteBtn.disabled = true;
+    try {
+      const result = await window.Clipboard.paste(resolveConflictViaModal);
+      toast(`Pasted: ${result.succeeded} succeeded, ${result.failed} failed, ${result.skipped} skipped`, result.failed > 0 ? "error" : "success");
+    } catch (e) {
+      toast("Paste failed: " + e.message, "error");
+      log("Paste failed: " + e.message, "error");
+    } finally {
+      updateClipboardBar();
+    }
+  });
+
   async function deleteFolderRecursive(prefix) {
     log(`Scanning folder ${prefix}...`);
     const allKeys = [];
@@ -1792,4 +1937,26 @@
   }
 
   init();
+
+  // ── Manager Context (used by clipboard.js, view-mode.js) ──
+
+  window.ManagerCtx = {
+    getClient: () => client,
+    getCurrentPrefix: () => currentPrefix,
+    getAllFolders: () => allFolders,
+    getAllFiles: () => allFiles,
+    getSelectedKeys: () => selectedKeys,
+    clearSelectedKeys: () => selectedKeys.clear(),
+    reloadCurrentFolder: () => loadFolder(currentPrefix),
+    getFileName,
+    getFileIcon,
+    isImage,
+    isVideo,
+    isPreviewable,
+    previewFile,
+    toast,
+    log,
+    escapeHtml,
+    formatSize,
+  };
 })();
