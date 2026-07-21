@@ -5,6 +5,8 @@
 A Chrome extension that lets you browse, upload, download, rename, and manage files across multiple cloud storage providers. Think FileZilla, but as a browser extension.
 Running on : Chrome, Vivaldi, Edge, Brave, Opera and All Browsed based Chromium.
 
+Download on Chrome Extension : https://chromewebstore.google.com/detail/cumulus-%E2%80%94-s3-r2-webdav-fi/bcljbdjgihdnccbablncpdhankediple
+
 ![Cumulus Screenshot](screenshot.jpg)
 
 ## Supported Protocols
